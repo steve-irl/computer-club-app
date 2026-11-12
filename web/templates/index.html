@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Computer Club Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { display: flex; height: 100vh; background-color: #1e1e1e; color: #ffffff; }
+
+        /* Левая панель */
+        .sidebar {
+            width: 300px; background-color: #252526; padding: 25px 20px;
+            border-right: 1px solid #3c3c3c; display: flex; flex-direction: column;
+        }
+        .sidebar h2 { font-size: 20px; font-weight: 400; text-align: center; margin-bottom: 25px; }
+        label { display: block; font-size: 13px; color: #cccccc; margin-bottom: 5px; margin-top: 14px; }
+        input, select {
+            width: 100%; padding: 8px 10px; background-color: #1e1e1e;
+            border: 1px solid #555; color: #fff; font-size: 14px; border-radius: 3px;
+        }
+        .btn {
+            margin-top: 22px; width: 100%; padding: 10px; border: none;
+            color: white; font-size: 15px; border-radius: 3px; cursor: pointer; font-weight: 500;
+        }
+        .btn-start { background-color: #3a7ebf; }
+        .btn-start:hover { background-color: #2d669e; }
+        .btn-start:disabled { background-color: #444; cursor: not-allowed; }
+
+        .btn-finish { background-color: #c92a2a; }
+        .btn-finish:hover { background-color: #a61e1e; }
+
+        /* Карточка информации об активной сессии */
+        .session-info {
+            background: #1e1e1e; border: 1px solid #444; border-radius: 4px;
+            padding: 12px; margin-top: 10px; font-size: 14px; line-height: 1.6;
+        }
+        .session-info span { color: #9cdcfe; font-weight: 500; }
+
+        /* Права частина (Карта залу) */
+        .main { flex: 1; padding: 25px 40px; display: flex; flex-direction: column; justify-content: space-between; }
+        .main h2 { font-size: 20px; font-weight: 400; text-align: center; margin-bottom: 20px; }
+
+        .grid {
+            display: grid; grid-template-columns: repeat(5, 1fr);
+            gap: 25px; max-width: 900px; margin: 0 auto; width: 100%;
+        }
+        .pc-card {
+            height: 60px; border-radius: 4px; display: flex; align-items: center;
+            justify-content: center; gap: 10px; font-size: 16px; cursor: pointer;
+            border: 2px solid transparent; transition: 0.15s;
+        }
+        .pc-card.selected { border: 3px solid #ffffff; transform: scale(1.04); }
+
+        /* Статуси ПК з БД */
+        .available { background-color: #288c34; }
+        .occupied { background-color: #d92626; }
+        .reserved { background-color: #f2e829; color: #111; font-weight: 500; }
+        .maintenance { background-color: #555555; color: #ccc; }
+
+        /* Легенда внизу */
+        .legend { display: flex; justify-content: center; gap: 30px; padding-top: 20px; }
+        .legend-item {
+            display: flex; align-items: center; gap: 10px; background: #2b2b2b;
+            padding: 8px 16px; border: 1px solid #444; font-size: 14px;
+        }
+        .box { width: 20px; height: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Управління сесіями</h2>
+
+        <!-- ФОРМА СТАРТУ НОВОЇ СЕСІЇ (для вільних ПК) -->
+        <form id="start_form" action="/start-session" method="POST">
+            <label>Обраний ПК:</label>
+            <input type="text" id="selected_pc_display" placeholder="Клікніть на ПК на карті" readonly required>
+            <input type="hidden" name="seat_id" id="seat_id" required>
+
+            <label>Клієнт (ID та ім'я):</label>
+            <select name="client_id" required>
+                {% for client in clients %}
+                <option value="{{ client.id }}">#{{ client.id }} — {{ client.full_name }} ({{ client.deposit_balance }} грн)</option>
+                {% endfor %}
+            </select>
+
+            <label>Тариф:</label>
+            <select name="tariff_id" required>
+                {% for tariff in tariffs %}
+                <option value="{{ tariff.id }}">{{ tariff.name }} ({{ tariff.price }} грн)</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" class="btn btn-start" id="submit_btn" disabled>Старт</button>
+        </form>
+
+        <!-- ФОРМА ЗАВЕРШЕННЯ СЕСІЇ (з'являється при кліку на червоний ПК) -->
+        <form id="finish_form" action="/finish-session" method="POST" style="display: none;">
+            <input type="hidden" name="session_id" id="finish_session_id">
+            
+            <div class="session-info">
+                <div>Місце: <span id="info_pc"></span></div>
+                <div>Клієнт: <span id="info_client"></span></div>
+                <div>Баланс клієнта: <span id="info_balance"></span> грн</div>
+                <div>Тариф: <span id="info_tariff"></span></div>
+                <div>Початок: <span id="info_start"></span></div>
+                <div>Замовлення бару: <span id="info_bar"></span> грн</div>
+            </div>
+
+            <button type="submit" class="btn btn-finish">Завершити та списати кошти</button>
+        </form>
+    </div>
+
+    <div class="main">
+        <h2>Карта залу</h2>
+
+        <div class="grid">
+            {% for seat in seats %}
+            <div class="pc-card {{ seat.status }}"
+                 data-id="{{ seat.id }}"
+                 data-number="{{ seat.number }}"
+                 data-status="{{ seat.status }}"
+                 data-hall="{{ seat.hall_name }}"
+                 data-session-id="{{ seat.active_session_id or '' }}"
+                 data-client="{{ seat.active_client_name or '' }}"
+                 data-balance="{{ seat.active_client_balance or '0' }}"
+                 data-tariff="{{ seat.active_tariff_name or '' }} ({{ seat.active_tariff_price or '0' }} грн × {{ seat.price_coefficient }})"
+                 data-start="{{ seat.session_start_str }}"
+                 data-bar="{{ seat.bar_total }}"
+                 title="Зал: {{ seat.hall_name }} (x{{ seat.price_coefficient }}) | {{ seat.cpu }}, {{ seat.gpu }}, {{ seat.ram_gb }}GB"
+                 onclick="handlePCClick(this)">
+                🖥️ PC {{ seat.number }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><div class="box available"></div> Вільно</div>
+            <div class="legend-item"><div class="box occupied"></div> Зайнято</div>
+            <div class="legend-item"><div class="box reserved"></div> Заброньовано</div>
+            <div class="legend-item"><div class="box maintenance"></div> Ремонт</div>
+        </div>
+    </div>
+
+    <script>
+        function handlePCClick(el) {
+            const status = el.dataset.status;
+            const number = el.dataset.number;
+            const hall = el.dataset.hall;
+
+            document.querySelectorAll('.pc-card').forEach(card => card.classList.remove('selected'));
+            el.classList.add('selected');
+
+            const startForm = document.getElementById('start_form');
+            const finishForm = document.getElementById('finish_form');
+
+            if (status === 'available') {
+                finishForm.style.display = 'none';
+                startForm.style.display = 'block';
+
+                document.getElementById('seat_id').value = el.dataset.id;
+                document.getElementById('selected_pc_display').value = 'PC ' + number + ' (' + hall + ')';
+                document.getElementById('submit_btn').disabled = false;
+            } 
+            else if (status === 'occupied') {
+                startForm.style.display = 'none';
+                finishForm.style.display = 'block';
+
+                document.getElementById('finish_session_id').value = el.dataset.sessionId;
+                document.getElementById('info_pc').textContent = 'PC ' + number + ' (' + hall + ')';
+                document.getElementById('info_client').textContent = el.dataset.client;
+                document.getElementById('info_balance').textContent = el.dataset.balance;
+                document.getElementById('info_tariff').textContent = el.dataset.tariff;
+                document.getElementById('info_start').textContent = el.dataset.start;
+                document.getElementById('info_bar').textContent = el.dataset.bar;
+            } 
+            else {
+                alert('Цей ПК зараз недоступний (статус: ' + status + ')');
+            }
+        }
+    </script>
+
+</body>
+</html>
