@@ -23,7 +23,6 @@ INSERT INTO tariffs (id, name, price) VALUES
 (2, 'Night package', 250.00),
 (3, '3 hours package', 150.00),
 (4, 'Morning', 40.00),
-(5, 'Weekend hourly', 70.00);
 
 -- 4. clients
 INSERT INTO clients (id, full_name, deposit_balance, level) VALUES
@@ -58,8 +57,6 @@ INSERT INTO seats (id, number, hall_id, pc_id, status) VALUES
 (7, 7, 2, 6, 'reserved'),
 (8, 8, 3, 3, 'available'),
 (9, 9, 3, 3, 'occupied'),
-(10, 10, 4, 6, 'available'),
-(11, 11, 5, 2, 'available');
 
 -- 7. sessions (3 active ones match the 'occupied' seats 2, 5, 9)
 INSERT INTO sessions (id, start_time, end_time, status, seat_id, tariff_id, client_id) VALUES

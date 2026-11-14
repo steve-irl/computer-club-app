@@ -1,24 +1,24 @@
--- #1 ДОДАВАННЯ ТА МОДИФІКАЦІЯ ДАНИХ (INSERT)
+-- #1 ДОДАВАННЯ ДАНИХ 
 
--- додавання нового клієнта (з базовим нульовим балансом та рівнем лояльності)
+-- додавання нового клієнта 
 INSERT INTO clients (full_name, deposit_balance, level)
-VALUES ('Іванов І.І.', 0.00, 0);
+VALUES ('Ivan Ivanov', 0.00, 0);
 
 -- робочого місця (звичайне додавання в зал Standard)
 INSERT INTO seats (number, hall_id, pc_id, status)
-VALUES (101, 1, 1, 'available');
+VALUES (10, 4, 6, 'available');
 
--- робочого місця (додавання із явним статусом occupied в VIP зал)
+-- робочого місця (додавання із статусом occupied в VIP зал)
 INSERT INTO seats (number, hall_id, pc_id, status)
-VALUES (201, 2, 3, 'occupied');
+VALUES (11, 5, 2, 'occupied');
 
 -- тарифу
 INSERT INTO tariffs (name, price)
-VALUES ('погодинний', 200.00);
+VALUES ('Weekend hourly', 70.00);
 
 -- відкриття нової сесії (активна сесія на поточний момент, замовчування полів)
-INSERT INTO sessions (start_time, end_time, status, seat_id, tariff_id, client_id) 
-VALUES (NOW(), NULL, 'active', 3, 1, 1);
+INSERT INTO sessions (start_time, seat_id, tariff_id, client_id) 
+VALUES ('2026-11-10 10:00:00', 3, 1, 1);
 
 -- фіксація завершеної сесії (замість 'completed' використовується статус 'finished')
 INSERT INTO sessions (start_time, end_time, status, seat_id, tariff_id, client_id) 
@@ -26,22 +26,18 @@ VALUES ('2026-11-10 10:00:00', '2026-11-10 12:00:00', 'finished', 3, 1, 1);
 
 -- скасована сесія
 INSERT INTO sessions (start_time, end_time, status, seat_id, tariff_id, client_id)
-VALUES (NOW(), NOW(), 'cancelled', 1, 3, 2);
+VALUES ('2026-10-13 18:00:00', '2026-10-13 18:00:00', 'cancelled', 1, 3, 2);
 
 
 -- #2 ПОШУК ВІЛЬНИХ ПК У ВИБРАНІЙ ЗОНІ ЗАЛУ НА ПЕВНИЙ МОМЕНТ
--- Назва залу адаптована під структуру ('VIP' замість 'VIP Zone')
--- Додатково перевіряється, щоб на ПК не було активної сесії
 
-SELECT seats.id, seats.number, halls.name 
-FROM seats 
+SELECT halls.name, seats.pc_id, seats.id  FROM seats 
 INNER JOIN halls ON seats.hall_id = halls.id
-WHERE halls.name = 'VIP' 
-  AND seats.status = 'available' 
-  AND seats.id NOT IN (
-      SELECT seat_id 
-      FROM sessions 
-      WHERE status = 'active'
+WHERE seats.status != 'maintenance' and  halls.name='VIP' 
+and seats.id not in(select seat_id from sessions  where sessions.status='active')
+AND seats.id NOT IN (
+    SELECT seat_id FROM reservations 
+    WHERE '2026-11-09 18:30:00' BETWEEN start_time AND end_time
   );
 
 
@@ -53,49 +49,38 @@ SET deposit_balance = deposit_balance + 100.00
 WHERE id = 1;
 
 -- Списання коштів за проведену сесію (на прикладі завершеної сесії id=4)
--- Вираховує фінальну вартість часу з коефіцієнтом та товари, і знімає з балансу клієнта
-UPDATE clients c
-SET c.deposit_balance = c.deposit_balance - (
-    SELECT 
-        (t.price * COALESCE(h.price_coefficient, 1.0) * 
-         CEIL(TIMESTAMPDIFF(MINUTE, s.start_time, s.end_time) / 60.0)) + 
-        COALESCE(SUM(o.total_price), 0)
-    FROM sessions s
-    JOIN tariffs t ON s.tariff_id = t.id
-    JOIN seats st ON s.seat_id = st.id
-    JOIN halls h ON st.hall_id = h.id
-    LEFT JOIN orders o ON s.id = o.session_id
-    WHERE s.id = 4 AND s.client_id = c.id
-    GROUP BY s.id, t.price, h.price_coefficient, s.start_time, s.end_time
+
+SELECT id, start_time, end_time, client_id FROM sessions
+WHERE status='finished';
+
+UPDATE clients
+INNER JOIN sessions ON clients.id = sessions.client_id
+INNER JOIN seats ON sessions.seat_id = seats.id
+INNER JOIN halls ON seats.hall_id = halls.id
+INNER JOIN tariffs ON sessions.tariff_id = tariffs.id
+SET clients.deposit_balance = clients.deposit_balance - (
+    TIMESTAMPDIFF(HOUR, sessions.start_time, sessions.end_time) * tariffs.price * halls.price_coefficient
 )
-WHERE c.id = (SELECT client_id FROM sessions WHERE id = 4);
+where sessions.id=4;
 
 
 -- #4 ІСТОРІЯ СЕСІЙ КОНКРЕТНОГО КОРИСТУВАЧА ІЗ СУМАРНИМИ ВИТРАТАМИ
--- Розрахунок вартості часу «на льоту»: базова ставка * коефіцієнт залу
--- Загальна вартість сесії вираховується як: total = вартість часу + бар
 
 SELECT 
-    s.id AS session_id,
-    s.start_time,
-    s.end_time,
-    s.status,
-    st.number AS seat_number,
-    h.name AS hall_name,
-    t.name AS tariff_name,
-    -- Вартість ігрового часу (округлення до годин вгору для прикладу розрахунку)
-    (t.price * h.price_coefficient * CEIL(TIMESTAMPDIFF(MINUTE, s.start_time, COALESCE(s.end_time, NOW())) / 60.0)) AS time_cost,
-    -- Вартість замовлень з бару
-    COALESCE(SUM(o.total_price), 0) AS bar_cost,
-    -- Загальна вартість (total)
-    ((t.price * h.price_coefficient * CEIL(TIMESTAMPDIFF(MINUTE, s.start_time, COALESCE(s.end_time, NOW())) / 60.0)) + COALESCE(SUM(o.total_price), 0)) AS total_session_cost
-FROM sessions s
-JOIN tariffs t ON s.tariff_id = t.id
-JOIN seats st ON s.seat_id = st.id
-JOIN halls h ON st.hall_id = h.id
-LEFT JOIN orders o ON s.id = o.session_id
-WHERE s.client_id = 4 -- приклад для клієнта з id=4 (Dmytro Bondarenko)
-GROUP BY s.id, s.start_time, s.end_time, s.status, st.number, h.name, t.name, t.price, h.price_coefficient;
+sessions.id, 
+sessions.start_time, 
+sessions.end_time, 
+halls.name AS hall_name, 
+tariffs.name AS tariff_name,
+clients.full_name AS client, 
+(TIMESTAMPDIFF(HOUR, sessions.start_time, sessions.end_time) * tariffs.price * halls.price_coefficient) AS time_cost
+FROM sessions
+INNER JOIN seats ON sessions.seat_id = seats.id
+INNER JOIN halls ON seats.hall_id = halls.id
+INNER JOIN tariffs ON sessions.tariff_id = tariffs.id
+INNER JOIN clients ON sessions.client_id = clients.id
+WHERE sessions.status = 'finished' and sessions.client_id=4;
+
 
 
 -- #5 АНАЛІТИЧНИЙ ЗАПИТ: ПЕРЕВІРКА НА "ПОВНУ ПОСАДКУ"
