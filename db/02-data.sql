@@ -1,6 +1,6 @@
 SET NAMES utf8mb4;
 
--- 1. halls (price_coefficient: Standard=1.0, VIP=1.3 as in the task)
+-- 1. halls
 INSERT INTO halls (id, name, price_coefficient) VALUES
 (1, 'Standard', 1.0),
 (2, 'VIP', 1.3),
@@ -17,7 +17,7 @@ INSERT INTO pc_specs (id, cpu, gpu, ram_gb, storage) VALUES
 (5, 'Ryzen 5 5600', 'RTX 3050', 16, '512GB SSD'),
 (6, 'Ryzen 7 7800X3D', 'RTX 4080', 64, '2TB SSD');
 
--- 3. tariffs (price = base hourly rate or fixed package price)
+-- 3. tariffs
 INSERT INTO tariffs (id, name, price) VALUES
 (1, 'Hourly', 60.00),
 (2, 'Night package', 250.00),
@@ -46,7 +46,7 @@ INSERT INTO products (id, name, category, price, stock_quantity) VALUES
 (7, 'Pizza slice', 'Food', 65.00, 20),
 (8, 'Coffee', 'Drinks', 40.00, 100);
 
--- 6. seats (status: available / occupied / reserved / maintenance)
+-- 6. seats
 INSERT INTO seats (id, number, hall_id, pc_id, status) VALUES
 (1, 1, 1, 1, 'available'),
 (2, 2, 1, 1, 'occupied'),
@@ -58,7 +58,7 @@ INSERT INTO seats (id, number, hall_id, pc_id, status) VALUES
 (8, 8, 3, 3, 'available'),
 (9, 9, 3, 3, 'occupied');
 
--- 7. sessions (3 active ones match the 'occupied' seats 2, 5, 9)
+-- 7. sessions
 INSERT INTO sessions (id, start_time, end_time, status, seat_id, tariff_id, client_id) VALUES
 (1, '2026-11-09 10:00:00', NULL, 'active', 2, 1, 1),
 (2, '2026-11-09 11:30:00', NULL, 'active', 5, 3, 4),
@@ -79,7 +79,7 @@ INSERT INTO reservations (id, client_id, seat_id, start_time, end_time, date) VA
 (5, 8, 8, '2026-11-11 20:00:00', '2026-11-11 23:00:00', '2026-11-11'),
 (6, 1, 9, '2026-11-12 17:00:00', '2026-11-12 19:00:00', '2026-11-12');
 
--- 9. orders (total_price = quantity * product price)
+-- 9. orders
 INSERT INTO orders (id, quantity, total_price, session_id, product_id) VALUES
 (1, 2, 70.00, 1, 1),
 (2, 1, 45.00, 1, 4),

@@ -20,7 +20,6 @@ def index(request: Request):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
 
-    # Получаем все ПК + информацию об активной сессии, если стол занят
     cursor.execute("""
         SELECT 
             s.id, s.number, s.status, 
@@ -43,7 +42,6 @@ def index(request: Request):
     """)
     seats = cursor.fetchall()
 
-    # Форматируем время старта в строку для передачи в JS
     for seat in seats:
         if seat["session_start"]:
             seat["session_start_str"] = seat["session_start"].strftime("%Y-%m-%d %H:%M:%S")
@@ -91,10 +89,8 @@ def finish_session(session_id: int = Form(...)):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
 
-    # 1. Фиксируем время окончания сессии
     cursor.execute("UPDATE sessions SET end_time = NOW() WHERE id = %s", (session_id,))
 
-    # 2. Получаем данные для расчёта стоимости
     cursor.execute("""
         SELECT 
             s.client_id, s.seat_id,
@@ -114,7 +110,6 @@ def finish_session(session_id: int = Form(...)):
         time_cost = float(info["tariff_price"]) * float(info["price_coefficient"]) * int(info["hours_played"])
         total_cost = round(time_cost + float(info["bar_cost"]), 2)
 
-        # 3. Завершаем сессию, списываем деньги с баланса и освобождаем ПК
         cursor.execute("UPDATE sessions SET status = 'finished' WHERE id = %s", (session_id,))
         cursor.execute("UPDATE clients SET deposit_balance = deposit_balance - %s WHERE id = %s", (total_cost, info["client_id"]))
         cursor.execute("UPDATE seats SET status = 'available' WHERE id = %s", (info["seat_id"],))

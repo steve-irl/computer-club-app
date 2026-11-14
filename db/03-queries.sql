@@ -1,36 +1,27 @@
--- #1 ДОДАВАННЯ ДАНИХ 
-
--- додавання нового клієнта 
+-- #1 
 INSERT INTO clients (full_name, deposit_balance, level)
 VALUES ('Ivan Ivanov', 0.00, 0);
 
--- робочого місця (звичайне додавання в зал Standard)
 INSERT INTO seats (number, hall_id, pc_id, status)
 VALUES (10, 4, 6, 'available');
 
--- робочого місця (додавання із статусом occupied в VIP зал)
 INSERT INTO seats (number, hall_id, pc_id, status)
 VALUES (11, 5, 2, 'occupied');
 
--- тарифу
 INSERT INTO tariffs (name, price)
 VALUES ('Weekend hourly', 70.00);
 
--- відкриття нової сесії (активна сесія на поточний момент, замовчування полів)
 INSERT INTO sessions (start_time, seat_id, tariff_id, client_id) 
 VALUES ('2026-11-10 10:00:00', 3, 1, 1);
 
--- фіксація завершеної сесії (замість 'completed' використовується статус 'finished')
 INSERT INTO sessions (start_time, end_time, status, seat_id, tariff_id, client_id) 
 VALUES ('2026-11-10 10:00:00', '2026-11-10 12:00:00', 'finished', 3, 1, 1);
 
--- скасована сесія
 INSERT INTO sessions (start_time, end_time, status, seat_id, tariff_id, client_id)
 VALUES ('2026-10-13 18:00:00', '2026-10-13 18:00:00', 'cancelled', 1, 3, 2);
 
 
--- #2 ПОШУК ВІЛЬНИХ ПК У ВИБРАНІЙ ЗОНІ ЗАЛУ НА ПЕВНИЙ МОМЕНТ
-
+-- #2 
 SELECT halls.name, seats.pc_id, seats.id  FROM seats 
 INNER JOIN halls ON seats.hall_id = halls.id
 WHERE seats.status != 'maintenance' and  halls.name='VIP' 
@@ -41,14 +32,12 @@ AND seats.id NOT IN (
   );
 
 
--- #3 ПОПОВНЕННЯ БАЛАНСУ КЛІЄНТА ТА СПИСАННЯ КОШТІВ
-
--- Поповнення балансу клієнта
+-- #3
 UPDATE clients 
 SET deposit_balance = deposit_balance + 100.00
 WHERE id = 1;
 
--- Списання коштів за проведену сесію (на прикладі завершеної сесії id=4)
+
 
 SELECT id, start_time, end_time, client_id FROM sessions
 WHERE status='finished';
@@ -64,7 +53,7 @@ SET clients.deposit_balance = clients.deposit_balance - (
 where sessions.id=4;
 
 
--- #4 ІСТОРІЯ СЕСІЙ КОНКРЕТНОГО КОРИСТУВАЧА ІЗ СУМАРНИМИ ВИТРАТАМИ
+-- #4
 
 SELECT 
 sessions.id, 
@@ -83,10 +72,7 @@ WHERE sessions.status = 'finished' and sessions.client_id=4;
 
 
 
--- #5 АНАЛІТИЧНИЙ ЗАПИТ: ПЕРЕВІРКА НА "ПОВНУ ПОСАДКУ"
--- Повертає 'Повна посадка', якщо вільних місць у залі немає, і 'Є вільні місця', якщо вони є.
--- Оцінюється аналітично на стороні СКБД, а не коду.
-
+-- #5
 SELECT 
     h.name AS hall_name,
     CASE 
@@ -96,5 +82,5 @@ SELECT
     END AS capacity_status
 FROM halls h
 LEFT JOIN seats s ON h.id = s.hall_id
-WHERE h.name = 'VIP' -- приклад перевірки для VIP залу
+WHERE h.name = 'VIP'
 GROUP BY h.id, h.name;

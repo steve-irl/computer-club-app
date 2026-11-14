@@ -7,7 +7,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { display: flex; height: 100vh; background-color: #1e1e1e; color: #ffffff; }
 
-        /* Левая панель */
         .sidebar {
             width: 300px; background-color: #252526; padding: 25px 20px;
             border-right: 1px solid #3c3c3c; display: flex; flex-direction: column;
@@ -29,14 +28,12 @@
         .btn-finish { background-color: #c92a2a; }
         .btn-finish:hover { background-color: #a61e1e; }
 
-        /* Карточка информации об активной сессии */
         .session-info {
             background: #1e1e1e; border: 1px solid #444; border-radius: 4px;
             padding: 12px; margin-top: 10px; font-size: 14px; line-height: 1.6;
         }
         .session-info span { color: #9cdcfe; font-weight: 500; }
 
-        /* Права частина (Карта залу) */
         .main { flex: 1; padding: 25px 40px; display: flex; flex-direction: column; justify-content: space-between; }
         .main h2 { font-size: 20px; font-weight: 400; text-align: center; margin-bottom: 20px; }
 
@@ -51,13 +48,11 @@
         }
         .pc-card.selected { border: 3px solid #ffffff; transform: scale(1.04); }
 
-        /* Статуси ПК з БД */
         .available { background-color: #288c34; }
         .occupied { background-color: #d92626; }
         .reserved { background-color: #f2e829; color: #111; font-weight: 500; }
         .maintenance { background-color: #555555; color: #ccc; }
 
-        /* Легенда внизу */
         .legend { display: flex; justify-content: center; gap: 30px; padding-top: 20px; }
         .legend-item {
             display: flex; align-items: center; gap: 10px; background: #2b2b2b;
@@ -71,7 +66,6 @@
     <div class="sidebar">
         <h2>Управління сесіями</h2>
 
-        <!-- ФОРМА СТАРТУ НОВОЇ СЕСІЇ (для вільних ПК) -->
         <form id="start_form" action="/start-session" method="POST">
             <label>Обраний ПК:</label>
             <input type="text" id="selected_pc_display" placeholder="Клікніть на ПК на карті" readonly required>
@@ -94,7 +88,6 @@
             <button type="submit" class="btn btn-start" id="submit_btn" disabled>Старт</button>
         </form>
 
-        <!-- ФОРМА ЗАВЕРШЕННЯ СЕСІЇ (з'являється при кліку на червоний ПК) -->
         <form id="finish_form" action="/finish-session" method="POST" style="display: none;">
             <input type="hidden" name="session_id" id="finish_session_id">
             
